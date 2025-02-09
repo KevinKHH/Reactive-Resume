@@ -22,8 +22,8 @@ RUN pnpm store prune && rm -rf node_modules .pnpm-store
 COPY .npmrc package.json pnpm-lock.yaml ./
 COPY ./tools/prisma /app/tools/prisma
 
-# Installation forcée des dépendances
-RUN pnpm install --frozen-lockfile --no-optional --legacy-peer-deps
+# Installation forcée des dépendances avec la bonne option
+RUN pnpm install --frozen-lockfile --no-optional --config.strict-peer-dependencies=false
 
 COPY . .
 
