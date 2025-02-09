@@ -5,8 +5,8 @@ ARG NX_CLOUD_ACCESS_TOKEN
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-# Désactiver Corepack pour éviter les erreurs de signature
-RUN corepack disable
+# Installer pnpm manuellement AVANT de l'utiliser
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
@@ -14,13 +14,13 @@ WORKDIR /app
 FROM base AS build
 ARG NX_CLOUD_ACCESS_TOKEN
 
-# Désactiver la vérification d'intégrité de pnpm
+# Désactiver la vérification d'intégrité après installation de pnpm
 RUN pnpm config set verify-store-integrity false
 
 COPY .npmrc package.json pnpm-lock.yaml ./
 COPY ./tools/prisma /app/tools/prisma
 
-# Correction de l'erreur d'installation de pnpm
+# Correction de l'installation de pnpm
 RUN pnpm install --frozen-lockfile --no-optional
 
 COPY . .
