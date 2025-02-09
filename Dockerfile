@@ -1,14 +1,13 @@
 # --- Base Image ---
-FROM node:lts-bullseye-slim AS base
+FROM node:18-bullseye-slim AS base
 ARG NX_CLOUD_ACCESS_TOKEN
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV NODE_VERSION=18
 
-# Désactiver Corepack pour éviter les erreurs de vérification de signature
+# Installer pnpm directement
 RUN corepack disable
-
-# Installer pnpm directement avec npm
 RUN npm install -g pnpm@latest
 
 WORKDIR /app
@@ -17,19 +16,23 @@ WORKDIR /app
 FROM base AS build
 ARG NX_CLOUD_ACCESS_TOKEN
 
-# Désactiver la vérification d'intégrité de pnpm
-RUN pnpm config set verify-store-integrity false
+# Supprimer le cache pour éviter les conflits de dépendances
+RUN pnpm store prune && rm -rf node_modules .pnpm-store
 
 COPY .npmrc package.json pnpm-lock.yaml ./
 COPY ./tools/prisma /app/tools/prisma
 
-# Correction de l'installation de pnpm
-RUN pnpm install --frozen-lockfile --no-optional
+# Installation forcée des dépendances
+RUN pnpm install --frozen-lockfile --no-optional --legacy-peer-deps
 
 COPY . .
 
 ENV NX_CLOUD_ACCESS_TOKEN=$NX_CLOUD_ACCESS_TOKEN
 
+# Reconstruire les dépendances natives
+RUN pnpm rebuild @swc/core
+
+# Exécuter la build
 RUN pnpm run build
 
 # --- Release Image ---
@@ -40,7 +43,7 @@ RUN apt update && apt install -y dumb-init --no-install-recommends && rm -rf /va
 
 COPY --chown=node:node --from=build /app/.npmrc /app/package.json /app/pnpm-lock.yaml ./
 
-# Installation en mode production uniquement
+# Installation en mode production
 RUN pnpm install --prod --frozen-lockfile --no-optional
 
 COPY --chown=node:node --from=build /app/dist ./dist
