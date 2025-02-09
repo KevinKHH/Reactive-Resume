@@ -5,8 +5,11 @@ ARG NX_CLOUD_ACCESS_TOKEN
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-# Installer pnpm manuellement AVANT de l'utiliser
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Désactiver Corepack pour éviter les erreurs de vérification de signature
+RUN corepack disable
+
+# Installer pnpm directement avec npm
+RUN npm install -g pnpm@latest
 
 WORKDIR /app
 
@@ -14,7 +17,7 @@ WORKDIR /app
 FROM base AS build
 ARG NX_CLOUD_ACCESS_TOKEN
 
-# Désactiver la vérification d'intégrité après installation de pnpm
+# Désactiver la vérification d'intégrité de pnpm
 RUN pnpm config set verify-store-integrity false
 
 COPY .npmrc package.json pnpm-lock.yaml ./
