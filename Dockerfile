@@ -1,10 +1,9 @@
 # --- Base Image ---
-FROM node:18-bullseye-slim AS base
+FROM node:22-bullseye-slim AS base
 ARG NX_CLOUD_ACCESS_TOKEN
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-ENV NODE_VERSION=18
 
 # Installer pnpm directement
 RUN corepack disable
@@ -22,6 +21,9 @@ RUN pnpm store prune && rm -rf node_modules .pnpm-store
 COPY .npmrc package.json pnpm-lock.yaml ./
 COPY ./tools/prisma /app/tools/prisma
 
+# Ajouter @swc/core pour éviter l'erreur de module manquant
+RUN pnpm add --save-dev @swc/core
+
 # Installation forcée des dépendances avec la bonne option
 RUN pnpm install --frozen-lockfile --no-optional --config.strict-peer-dependencies=false
 
@@ -29,11 +31,14 @@ COPY . .
 
 ENV NX_CLOUD_ACCESS_TOKEN=$NX_CLOUD_ACCESS_TOKEN
 
-# Reconstruire les dépendances natives
+# Désactiver le NX Daemon pour éviter les erreurs dans un environnement sans état
+ENV NX_DAEMON=false
+
+# Reconstruire les dépendances natives pour éviter l'erreur @swc/core
 RUN pnpm rebuild @swc/core
 
-# Exécuter la build
-RUN pnpm run build
+# Exécuter la build propre
+RUN pnpm build --prefer-offline
 
 # --- Release Image ---
 FROM base AS release
